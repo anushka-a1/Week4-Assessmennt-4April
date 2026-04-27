@@ -66,22 +66,30 @@ pipeline {
         }
 
         stage('Run Tests') {
-            steps {
-                echo '>>> Running pytest...'
-                bat '''
+    steps {
+        script {
+            def testStatus = bat(
+                returnStatus: true,
+                script: '''
                     @echo off
                     call .venv\\Scripts\\activate.bat
                     if not exist reports mkdir reports
-                    pytest tests ^
-                        --html=reports\\test_report.html ^
-                        --self-contained-html ^
-                        --junitxml=reports\\junit_report.xml ^
-                        -v ^
-                        --tb=short
+
+                    pytest tests -v --tb=short ^
+                    --html=reports\\test_report.html ^
+                    --self-contained-html ^
+                    --junitxml=reports\\junit_report.xml
                 '''
+            )
+
+            echo "Pytest exit code: ${testStatus}"
+
+            if (testStatus != 0) {
+                currentBuild.result = 'UNSTABLE'
             }
         }
-
+    }
+}
         stage('Publish Reports') {
             steps {
                 junit allowEmptyResults: true, testResults: 'reports/junit_report.xml'
